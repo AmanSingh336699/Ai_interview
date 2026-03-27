@@ -1,7 +1,3 @@
-/**
- * LLD (Low Level Design) Evaluator prompt.
- * Evaluates SOLID compliance, design patterns, and extensibility.
- */
 
 export const LLD_EVALUATOR_PROMPT = `You are a Staff Engineer conducting an LLD (Low Level Design) interview.
 Evaluate the submitted design critically.
@@ -32,13 +28,6 @@ Return ONLY valid JSON:
   "verdict": "<Excellent|Good|Average|Poor>"
 }`;
 
-/**
- * Build the full LLD evaluation message.
- * @param {Object} params
- * @param {string} params.question - The design question
- * @param {string} params.answer - User's design answer (text/code)
- * @returns {string}
- */
 export function buildLLDEvalPrompt({ question, answer }) {
   return `
 DESIGN PROBLEM:

@@ -1,15 +1,3 @@
-/**
- * AI Service Orchestrator.
- * Manages provider selection, fallback logic, and circuit breaker pattern.
- *
- * Routing rules:
- * - DSA/LLD/HLD code evaluation → OpenAI (primary), Gemini (fallback)
- * - HR/Behavioural → Gemini (primary), OpenAI (fallback)
- * - Aptitude questions → Gemini (cheaper, fast enough)
- * - Question generation → Groq (primary), Gemini (fallback)
- *
- * Circuit breaker: After 5 consecutive Groq failures → switch ALL to Gemini for 60s
- */
 import { callGroq } from "./groq.service.js";
 import { callGemini } from "./gemini.service.js";
 import { CircuitBreaker } from "../../utils/circuitBreaker.js";
@@ -32,7 +20,6 @@ import {
     buildGenericEvalPrompt,
 } from "./prompts/system.prompts.js";
 
-/** Circuit breakers for each provider */
 const groqBreaker = new CircuitBreaker({
     failureThreshold: 5,
     cooldownMs: 60000,
@@ -44,12 +31,6 @@ const geminiBreaker = new CircuitBreaker({
     name: "gemini",
 });
 
-/**
- * Input sanitizer — prevents prompt injection attacks.
- * Strips dangerous patterns from user input before sending to AI.
- * @param {string} text
- * @returns {string}
- */
 function sanitizeInput(text) {
     if (!text) return "";
 
@@ -80,13 +61,6 @@ function sanitizeInput(text) {
     return sanitized;
 }
 
-/**
- * Call AI with automatic provider selection and fallback.
- * @param {'openai' | 'gemini'} preferredProvider
- * @param {string} systemPrompt
- * @param {string} userMessage
- * @returns {Promise<Object>}
- */
 async function callAIWithFallback(
     preferredProvider,
     systemPrompt,
@@ -102,7 +76,7 @@ async function callAIWithFallback(
             ? { call: callGemini, breaker: geminiBreaker, name: "Gemini" }
             : { call: callGroq, breaker: groqBreaker, name: "Groq" };
 
-    // Try primary provider (if circuit is not open)
+    
     if (!primary.breaker.isOpen()) {
         try {
             const result = await primary.call(systemPrompt, userMessage);
@@ -120,7 +94,7 @@ async function callAIWithFallback(
         );
     }
 
-    // Try fallback provider
+    
     if (!fallback.breaker.isOpen()) {
         try {
             const result = await fallback.call(systemPrompt, userMessage);
@@ -142,18 +116,13 @@ async function callAIWithFallback(
     );
 }
 
-// ──────────────────────────────────────────────────
-// PUBLIC API
-// ──────────────────────────────────────────────────
 
-/**
- * Generate an interview question.
- * Uses Groq as primary, Gemini as fallback.
- * Results are NOT cached (each question should be unique).
- */
+
+
+
 export async function generateQuestion(params) {
     const prompt = buildQuestionGenPrompt(params);
-    // Question generation strictly through Groq
+    
     const provider = "groq";
     return callAIWithFallback(
         provider,
@@ -162,11 +131,6 @@ export async function generateQuestion(params) {
     );
 }
 
-/**
- * Evaluate a DSA code answer.
- * Uses OpenAI as primary (better at code analysis).
- * Caches results for identical question+answer combos (1 hour TTL).
- */
 export async function evaluateDSA({ question, code, language, difficulty }) {
     const userMessage = buildDSAEvalPrompt({
         question: sanitizeInput(question),
@@ -183,10 +147,6 @@ export async function evaluateDSA({ question, code, language, difficulty }) {
     );
 }
 
-/**
- * Evaluate an HR/Behavioural answer.
- * Uses Gemini as primary (better at conversation analysis).
- */
 export async function evaluateHR({ question, answer }) {
     const userMessage = buildHREvalPrompt({
         question: sanitizeInput(question),
@@ -201,10 +161,6 @@ export async function evaluateHR({ question, answer }) {
     );
 }
 
-/**
- * Evaluate an LLD answer.
- * Uses OpenAI as primary.
- */
 export async function evaluateLLD({ question, answer }) {
     const userMessage = buildLLDEvalPrompt({
         question: sanitizeInput(question),
@@ -219,9 +175,6 @@ export async function evaluateLLD({ question, answer }) {
     );
 }
 
-/**
- * Evaluate a generic text answer (Tech Fundamentals, HLD, etc.).
- */
 export async function evaluateGeneric({ question, answer, roundType }) {
     const userMessage = buildGenericEvalPrompt({
         question: sanitizeInput(question),
@@ -245,9 +198,6 @@ export async function evaluateGeneric({ question, answer, roundType }) {
     );
 }
 
-/**
- * Get the status of all circuit breakers.
- */
 export function getAIStatus() {
     return {
         groq: groqBreaker.getStatus(),

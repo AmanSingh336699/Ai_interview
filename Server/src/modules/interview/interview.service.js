@@ -1,6 +1,3 @@
-/**
- * Interview service — core business logic for sessions, rounds, questions, and scoring.
- */
 import { prisma } from '../../config/database.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { logger } from '../../config/logger.js';
@@ -19,13 +16,10 @@ import {
   ROUND_DIFFICULTY_RANGE,
 } from './rounds/roundConfig.js';
 
-// ──────────────────────────────────────────────────
-// SESSION MANAGEMENT
-// ──────────────────────────────────────────────────
 
-/**
- * Create a new interview session and its rounds.
- */
+
+
+
 export async function createSession(userId, { level, role, companyType, companyName }) {
   const roundTypes = getRoundSequence(level, companyType);
   const totalRounds = roundTypes.length;
@@ -63,9 +57,6 @@ export async function createSession(userId, { level, role, companyType, companyN
   return session;
 }
 
-/**
- * Get a full session with all rounds and questions.
- */
 export async function getSession(sessionId, userId) {
   const session = await prisma.interviewSession.findUnique({
     where: { id: sessionId },
@@ -87,9 +78,6 @@ export async function getSession(sessionId, userId) {
   return session;
 }
 
-/**
- * Update session status (pause/abandon).
- */
 export async function updateSessionStatus(sessionId, userId, status) {
   const session = await prisma.interviewSession.findUnique({ where: { id: sessionId } });
   if (!session) throw ApiError.notFound('Session not found');
@@ -105,9 +93,6 @@ export async function updateSessionStatus(sessionId, userId, status) {
   });
 }
 
-/**
- * Delete an incomplete session.
- */
 export async function deleteSession(sessionId, userId) {
   const session = await prisma.interviewSession.findUnique({ where: { id: sessionId } });
   if (!session) throw ApiError.notFound('Session not found');
@@ -117,13 +102,10 @@ export async function deleteSession(sessionId, userId) {
   return prisma.interviewSession.delete({ where: { id: sessionId } });
 }
 
-// ──────────────────────────────────────────────────
-// ROUND MANAGEMENT
-// ──────────────────────────────────────────────────
 
-/**
- * Start a round — generates questions using AI and returns the first question.
- */
+
+
+
 export async function startRound(sessionId, roundNumber, userId) {
   const session = await prisma.interviewSession.findUnique({
     where: { id: sessionId },
@@ -139,14 +121,14 @@ export async function startRound(sessionId, roundNumber, userId) {
   const round = session.rounds[0];
   if (!round) throw ApiError.notFound('Round not found');
 
-  // If round already has questions, return existing state
+  
   const existingQuestions = await prisma.question.findMany({
     where: { roundId: round.id },
     orderBy: { questionNumber: 'asc' },
   });
 
   if (existingQuestions.length > 0) {
-    // Round already started, update status and return
+    
     await prisma.round.update({
       where: { id: round.id },
       data: { status: 'IN_PROGRESS', startedAt: round.startedAt || new Date() },
@@ -284,14 +266,10 @@ export async function startRound(sessionId, roundNumber, userId) {
   };
 }
 
-// ──────────────────────────────────────────────────
-// ANSWER EVALUATION
-// ──────────────────────────────────────────────────
 
-/**
- * Submit and evaluate an answer.
- * Returns AI evaluation with score and detailed feedback.
- */
+
+
+
 export async function submitAnswer({ sessionId, roundId, questionId, answer, codeAnswer, language }, userId) {
   const question = await prisma.question.findUnique({
     where: { id: questionId },
@@ -379,9 +357,6 @@ export async function submitAnswer({ sessionId, roundId, questionId, answer, cod
   return { question: updated, evaluation };
 }
 
-/**
- * Get a hint for a question.
- */
 export async function getHint(questionId, userId, userPlan, isAdmin = false) {
   const question = await prisma.question.findUnique({
     where: { id: questionId },
@@ -418,9 +393,6 @@ export async function getHint(questionId, userId, userPlan, isAdmin = false) {
   };
 }
 
-/**
- * Skip a question.
- */
 export async function skipQuestion(questionId, userId) {
   const question = await prisma.question.findUnique({
     where: { id: questionId },
@@ -436,13 +408,10 @@ export async function skipQuestion(questionId, userId) {
   });
 }
 
-// ──────────────────────────────────────────────────
-// ROUND / SESSION COMPLETION
-// ──────────────────────────────────────────────────
 
-/**
- * Complete a round — calculate round score.
- */
+
+
+
 export async function completeRound(sessionId, roundId, userId) {
   const round = await prisma.round.findUnique({
     where: { id: roundId },
@@ -455,7 +424,7 @@ export async function completeRound(sessionId, roundId, userId) {
   if (!round) throw ApiError.notFound('Round not found');
   if (round.session.userId !== userId) throw ApiError.forbidden('Not your session');
 
-  // Calculate round score (average of all question scores)
+  
   const answeredQuestions = round.questions.filter((q) => q.answeredAt || q.skipped);
   const totalScore = answeredQuestions.reduce((sum, q) => sum + (q.score || 0), 0);
   const roundScore = answeredQuestions.length > 0 ? totalScore / answeredQuestions.length : 0;
@@ -472,7 +441,7 @@ export async function completeRound(sessionId, roundId, userId) {
     },
   });
 
-  // Check if this is the last round
+  
   const session = await prisma.interviewSession.findUnique({
     where: { id: sessionId },
     include: { rounds: { orderBy: { roundNumber: 'asc' } } },
@@ -489,9 +458,6 @@ export async function completeRound(sessionId, roundId, userId) {
   };
 }
 
-/**
- * Complete the entire interview session — calculate weighted final score.
- */
 export async function completeSession(sessionId, userId) {
   const session = await prisma.interviewSession.findUnique({
     where: { id: sessionId },
@@ -504,7 +470,7 @@ export async function completeSession(sessionId, userId) {
   if (!session) throw ApiError.notFound('Session not found');
   if (session.userId !== userId) throw ApiError.forbidden('Not your session');
 
-  // Calculate weighted final score
+  
   let finalScore = 0;
   let totalWeight = 0;
 
@@ -516,17 +482,17 @@ export async function completeSession(sessionId, userId) {
     }
   }
 
-  // Normalize if total weight doesn't sum to 1
+  
   if (totalWeight > 0 && totalWeight !== 1) {
     finalScore = finalScore / totalWeight;
   }
 
   finalScore = Math.round(finalScore * 100) / 100;
 
-  // Calculate percentile (mock — based on score distribution)
+  
   const percentile = calculatePercentile(finalScore);
 
-  // Generate feedback summary
+  
   let feedback = '';
   try {
     const roundSummary = session.rounds
@@ -537,7 +503,7 @@ export async function completeSession(sessionId, userId) {
     feedback = `Final Score: ${finalScore}/100.`;
   }
 
-  // Update session
+  
   const updated = await prisma.interviewSession.update({
     where: { id: sessionId },
     data: {
@@ -556,15 +522,12 @@ export async function completeSession(sessionId, userId) {
     },
   });
 
-  // Update user profile analytics
+  
   await updateUserProfile(userId);
 
   return updated;
 }
 
-/**
- * Get full results for a completed session.
- */
 export async function getResults(sessionId, userId) {
   const session = await prisma.interviewSession.findUnique({
     where: { id: sessionId },
@@ -586,9 +549,6 @@ export async function getResults(sessionId, userId) {
   return session;
 }
 
-/**
- * Get paginated session history for a user.
- */
 export async function getHistory(userId, { page, limit, level, status }) {
   const where = { userId };
   if (level) where.level = level;
@@ -629,11 +589,10 @@ export async function getHistory(userId, { page, limit, level, status }) {
   };
 }
 
-// ──────────────────────────────────────────────────
-// HELPERS
-// ──────────────────────────────────────────────────
 
-/** Get difficulty based on round type */
+
+
+
 function getDifficulty(roundType) {
   const map = {
     APTITUDE: 'Easy',
@@ -691,7 +650,6 @@ async function getAdaptiveDifficulty(roundId, roundType) {
   }
 }
 
-/** Get a random topic for question generation */
 function getRandomTopic(roundType, previousTopics) {
   if (roundType.startsWith('DSA')) {
     const difficulty = roundType === 'DSA_BASIC' ? 'EASY' : roundType === 'DSA_MEDIUM' ? 'MEDIUM' : 'HARD';
@@ -780,7 +738,6 @@ function getFallbackQuestion(roundType, topic, questionNumber) {
   return options[(questionNumber - 1) % options.length];
 }
 
-/** Calculate percentile based on score (mock implementation) */
 function calculatePercentile(score) {
   if (score >= 90) return Math.floor(95 + Math.random() * 4);
   if (score >= 80) return Math.floor(85 + Math.random() * 9);
@@ -790,7 +747,6 @@ function calculatePercentile(score) {
   return Math.floor(10 + Math.random() * 19);
 }
 
-/** Update user profile analytics after session completion */
 async function updateUserProfile(userId) {
   try {
     const sessions = await prisma.interviewSession.findMany({
@@ -802,7 +758,7 @@ async function updateUserProfile(userId) {
     const scores = sessions.filter((s) => s.finalScore !== null).map((s) => s.finalScore);
     const averageScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
 
-    // Calculate per-round-type averages
+    
     const roundScores = {};
     for (const session of sessions) {
       for (const round of session.rounds) {
@@ -816,7 +772,7 @@ async function updateUserProfile(userId) {
 
     const avg = (arr) => (arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
 
-    // Calculate total time
+    
     const totalTimeMin = sessions.reduce((sum, s) => {
       if (s.startedAt && s.completedAt) {
         return sum + Math.floor((new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime()) / 60000);
@@ -824,7 +780,7 @@ async function updateUserProfile(userId) {
       return sum;
     }, 0);
 
-    // Identify weak and strong areas
+    
     const areaScores = Object.entries(roundScores).map(([type, scores]) => ({
       type,
       avg: avg(scores),

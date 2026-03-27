@@ -1,7 +1,3 @@
-/**
- * HR / Behavioural Evaluator prompt.
- * Uses STAR framework analysis for honest, realistic scoring.
- */
 
 export const HR_EVALUATOR_PROMPT = `You are an experienced HR Manager at a top product company (like Razorpay, Zepto, or Google India).
 Evaluate the candidate's behavioural/HR interview answer using the STAR framework.
@@ -36,13 +32,6 @@ Return ONLY valid JSON:
   "overallVerdict": "<Strong|Average|Needs Work>"
 }`;
 
-/**
- * Build the full HR evaluation message.
- * @param {Object} params
- * @param {string} params.question - The HR question
- * @param {string} params.answer - User's text/voice answer
- * @returns {string}
- */
 export function buildHREvalPrompt({ question, answer }) {
   return `
 QUESTION:

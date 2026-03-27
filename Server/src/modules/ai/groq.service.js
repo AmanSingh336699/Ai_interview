@@ -35,11 +35,11 @@ export async function callGroq(systemPrompt, userMessage, options = {}) {
 
     logger.info(`Groq call completed in ${elapsed}ms (${tokensUsed} tokens)`);
 
-    // Parse JSON response
+    
     try {
       return JSON.parse(content);
     } catch {
-      // Attempt to extract JSON from the response if it contains extra text
+      
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);

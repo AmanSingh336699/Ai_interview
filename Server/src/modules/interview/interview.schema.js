@@ -1,6 +1,3 @@
-/**
- * Interview module — Zod validation schemas.
- */
 import { z } from 'zod';
 
 export const createSessionSchema = z.object({

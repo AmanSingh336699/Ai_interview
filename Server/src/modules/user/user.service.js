@@ -1,12 +1,6 @@
-/**
- * User service — profile, analytics, and dashboard data.
- */
 import { prisma } from '../../config/database.js';
 import { ApiError } from '../../utils/ApiError.js';
 
-/**
- * Get user profile with analytics.
- */
 export async function getProfile(userId) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -30,9 +24,6 @@ export async function getProfile(userId) {
   return user;
 }
 
-/**
- * Update user profile settings.
- */
 export async function updateProfile(userId, data) {
   const { name, level, role, targetCompany, avatar } = data;
   return prisma.user.update({
@@ -58,13 +49,10 @@ export async function updateProfile(userId, data) {
   });
 }
 
-/**
- * Get performance analytics.
- */
 export async function getAnalytics(userId) {
   const profile = await prisma.userProfile.findUnique({ where: { userId } });
 
-  // Get recent session scores for trend data
+  
   const recentSessions = await prisma.interviewSession.findMany({
     where: { userId, status: 'COMPLETED' },
     orderBy: { completedAt: 'desc' },
@@ -91,9 +79,6 @@ export async function getAnalytics(userId) {
   };
 }
 
-/**
- * Get dashboard summary stats.
- */
 export async function getDashboard(userId) {
   const profile = await prisma.userProfile.findUnique({ where: { userId } });
 

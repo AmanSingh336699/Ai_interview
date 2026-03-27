@@ -1,6 +1,3 @@
-/**
- * Auth module — Zod validation schemas.
- */
 import { z } from 'zod';
 
 export const registerSchema = z.object({

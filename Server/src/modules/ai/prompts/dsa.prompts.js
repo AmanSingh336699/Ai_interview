@@ -1,7 +1,3 @@
-/**
- * DSA Evaluator prompt — used for evaluating coding solutions.
- * Provides strict, honest evaluation following Google-style interview standards.
- */
 
 export const DSA_EVALUATOR_PROMPT = `You are a Senior Software Engineer at Google conducting a DSA technical interview. 
 Evaluate the submitted code solution STRICTLY and HONESTLY. Do NOT give undeserved marks.
@@ -35,15 +31,6 @@ Required JSON structure:
   "verdict": "<Excellent|Good|Average|Poor>"
 }`;
 
-/**
- * Build the full DSA evaluation message.
- * @param {Object} params
- * @param {string} params.question - The question text
- * @param {string} params.code - User's code submission
- * @param {string} params.language - Programming language
- * @param {string} params.difficulty - Question difficulty
- * @returns {string}
- */
 export function buildDSAEvalPrompt({ question, code, language, difficulty }) {
   return `
 QUESTION (${difficulty}):

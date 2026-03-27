@@ -1,19 +1,9 @@
-/**
- * Upstash Redis client via ioredis.
- * Gracefully handles missing REDIS_URL — falls back to in-memory Map for development.
- */
 import { env } from './env.js';
 
-/** @type {import('ioredis').Redis | null} */
 let redis = null;
 
-/** @type {Map<string, { value: string, expiry: number | null }>} */
 const memoryStore = new Map();
 
-/**
- * Initialize Redis connection.
- * Returns null if REDIS_URL is not configured — cache utilities use in-memory fallback.
- */
 async function initRedis() {
   if (!env.REDIS_URL) {
     console.warn('⚠️  REDIS_URL not set — using in-memory cache (development only)');
@@ -37,11 +27,6 @@ async function initRedis() {
   }
 }
 
-/**
- * Get a value from Redis or in-memory fallback.
- * @param {string} key
- * @returns {Promise<string | null>}
- */
 async function cacheGet(key) {
   if (redis) {
     return redis.get(key);
@@ -55,12 +40,6 @@ async function cacheGet(key) {
   return entry.value;
 }
 
-/**
- * Set a value in Redis or in-memory fallback.
- * @param {string} key
- * @param {string} value
- * @param {number} [ttlSeconds] — TTL in seconds
- */
 async function cacheSet(key, value, ttlSeconds) {
   if (redis) {
     if (ttlSeconds) {
@@ -74,10 +53,6 @@ async function cacheSet(key, value, ttlSeconds) {
   });
 }
 
-/**
- * Delete a key from Redis or in-memory fallback.
- * @param {string} key
- */
 async function cacheDel(key) {
   if (redis) {
     return redis.del(key);

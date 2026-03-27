@@ -1,12 +1,3 @@
-/**
- * payment.service.js — Razorpay integration.
- *
- * Security notes:
- *  - Admin bypass is determined SERVER-SIDE only from DB — never from client input.
- *  - All payment verifications use HMAC-SHA256 signature validation.
- *  - Webhook uses raw body for signature verification.
- *  - Idempotency: duplicate payment/webhook events are safely ignored.
- */
 
 import { prisma } from "../../config/database.js";
 import { env } from "../../config/env.js";
@@ -14,21 +5,19 @@ import { ApiError } from "../../utils/ApiError.js";
 import { logger } from "../../config/logger.js";
 import crypto from "crypto";
 
-// ─── Plan config ───────────────────────────────────────────────────────────────
+
 
 export const PLAN_PRICES = {
-    PRO: 29900, // ₹299 in paise
-    PREMIUM: 59900, // ₹599 in paise
-    TEAM: 149900, // ₹1499 in paise
+    PRO: 29900, 
+    PREMIUM: 59900, 
+    TEAM: 149900, 
 };
 
-/** How long each paid plan stays active (ms) */
-const PLAN_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const ADMIN_PLAN_DURATION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
+const PLAN_DURATION_MS = 30 * 24 * 60 * 60 * 1000; 
+const ADMIN_PLAN_DURATION_MS = 365 * 24 * 60 * 60 * 1000; 
 
-// ─── Razorpay singleton ────────────────────────────────────────────────────────
 
-/** @type {import('razorpay').default | null} */
+
 let razorpayInstance = null;
 
 async function getRazorpay() {
@@ -44,19 +33,14 @@ async function getRazorpay() {
     return razorpayInstance;
 }
 
-// ─── createOrder ──────────────────────────────────────────────────────────────
 
-/**
- * Create a Razorpay order for a plan upgrade.
- * Admin users get their plan activated immediately — no payment required.
- * Admin status is ALWAYS read from the database, never from client input.
- */
+
 export async function createOrder(userId, plan) {
     if (!PLAN_PRICES[plan]) {
         throw ApiError.badRequest(`Invalid plan: ${plan}`);
     }
 
-    // Always fetch fresh from DB — never trust client-supplied role/admin fields
+    
     const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -70,7 +54,7 @@ export async function createOrder(userId, plan) {
 
     if (!user) throw ApiError.notFound("User not found");
 
-    // ── Admin bypass (server-side decision only) ────────────────────────────────
+    
     if (user.isAdmin) {
         const updated = await prisma.user.update({
             where: { id: userId },
@@ -90,7 +74,7 @@ export async function createOrder(userId, plan) {
         };
     }
 
-    // ── Regular user — create Razorpay order ───────────────────────────────────
+    
     const amount = PLAN_PRICES[plan];
     const razorpay = await getRazorpay();
 
@@ -119,17 +103,13 @@ export async function createOrder(userId, plan) {
         amount,
         currency: "INR",
         plan,
-        // keyId is public — safe to send to client
+        
         keyId: env.RAZORPAY_KEY_ID,
     };
 }
 
-// ─── verifyPayment ────────────────────────────────────────────────────────────
 
-/**
- * Verify Razorpay payment signature and activate the plan.
- * HMAC validation happens before any DB write.
- */
+
 export async function verifyPayment({
     razorpay_payment_id,
     razorpay_order_id,
@@ -139,13 +119,13 @@ export async function verifyPayment({
         throw ApiError.badRequest("Missing required payment fields");
     }
 
-    // ── Signature verification ──────────────────────────────────────────────────
+    
     const expectedSignature = crypto
         .createHmac("sha256", env.RAZORPAY_KEY_SECRET)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest("hex");
 
-    // Constant-time comparison to prevent timing attacks
+    
     const sigBuffer = Buffer.from(razorpay_signature, "hex");
     const expectedBuffer = Buffer.from(expectedSignature, "hex");
 
@@ -158,15 +138,15 @@ export async function verifyPayment({
         throw ApiError.badRequest("Invalid payment signature");
     }
 
-    // ── Fetch payment record ────────────────────────────────────────────────────
+    
     const payment = await prisma.payment.findUnique({
         where: { razorpayOrderId: razorpay_order_id },
     });
 
     if (!payment) throw ApiError.notFound("Payment record not found");
-    if (payment.status === "SUCCESS") return { alreadyProcessed: true }; // idempotent
+    if (payment.status === "SUCCESS") return { alreadyProcessed: true }; 
 
-    // ── Atomic update ───────────────────────────────────────────────────────────
+    
     const [updatedPayment] = await prisma.$transaction([
         prisma.payment.update({
             where: { id: payment.id },
@@ -198,22 +178,17 @@ export async function verifyPayment({
     return updatedPayment;
 }
 
-// ─── handleWebhook ────────────────────────────────────────────────────────────
 
-/**
- * Handle Razorpay webhook events.
- * Requires raw (unparsed) body for correct HMAC verification.
- * Acts as a backup in case the client-side verify call fails.
- */
+
 export async function handleWebhook(rawBody, signature) {
     if (!env.RAZORPAY_WEBHOOK_SECRET) {
         throw ApiError.internal("Webhook secret not configured");
     }
 
-    // ── Signature verification ──────────────────────────────────────────────────
+    
     const expectedSignature = crypto
         .createHmac("sha256", env.RAZORPAY_WEBHOOK_SECRET)
-        .update(rawBody) // must be raw Buffer/string, NOT parsed JSON
+        .update(rawBody) 
         .digest("hex");
 
     const sigBuffer = Buffer.from(signature, "hex");
@@ -237,7 +212,7 @@ export async function handleWebhook(rawBody, signature) {
 
     logger.info({ event }, "Razorpay webhook received");
 
-    // ── payment.captured ───────────────────────────────────────────────────────
+    
     if (event === "payment.captured" && payload) {
         const payment = await prisma.payment.findFirst({
             where: { razorpayOrderId: payload.order_id },
@@ -252,7 +227,7 @@ export async function handleWebhook(rawBody, signature) {
         }
 
         if (payment.status === "SUCCESS") {
-            return { received: true }; // already processed — idempotent
+            return { received: true }; 
         }
 
         await prisma.$transaction([
@@ -279,7 +254,7 @@ export async function handleWebhook(rawBody, signature) {
         );
     }
 
-    // ── payment.failed ─────────────────────────────────────────────────────────
+    
     if (event === "payment.failed" && payload) {
         await prisma.payment.updateMany({
             where: { razorpayOrderId: payload.order_id, status: "PENDING" },
@@ -294,7 +269,7 @@ export async function handleWebhook(rawBody, signature) {
     return { received: true };
 }
 
-// ─── getSubscription ──────────────────────────────────────────────────────────
+
 
 export async function getSubscription(userId) {
     const user = await prisma.user.findUnique({
@@ -329,7 +304,7 @@ export async function getSubscription(userId) {
     };
 }
 
-// ─── getPaymentHistory ────────────────────────────────────────────────────────
+
 
 export async function getPaymentHistory(userId) {
     return prisma.payment.findMany({

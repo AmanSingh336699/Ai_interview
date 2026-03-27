@@ -1,6 +1,3 @@
-/**
- * User controller — HTTP request handlers.
- */
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { ApiResponse } from '../../utils/ApiResponse.js';
 import * as userService from './user.service.js';

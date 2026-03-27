@@ -1,6 +1,3 @@
-/**
- * Auth routes — /api/v1/auth
- */
 import { Router } from 'express';
 import { validate } from '../../middleware/validate.middleware.js';
 import { requireAuth } from '../../middleware/auth.middleware.js';

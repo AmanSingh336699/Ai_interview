@@ -31,11 +31,11 @@ export async function callGemini(systemPrompt, userMessage, options = {}) {
     const elapsed = Date.now() - startTime;
     logger.info(`Gemini call completed in ${elapsed}ms`);
 
-    // Parse JSON response
+    
     try {
       return JSON.parse(content);
     } catch {
-      // Attempt to extract JSON from the response
+      
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
